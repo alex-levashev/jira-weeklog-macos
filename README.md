@@ -1,7 +1,7 @@
 🧭 Jira Weeklog macOS App
 
-<img src="Screenshots/Screenshot01.png" alt="Worklogs Login View" width="500"/>
-<img src="Screenshots/Screenshot02.png" alt="Worklogs Main View" width="500"/>
+<img src="Screenshots/Screenshot01.png" alt="Worklogs Login View" width="300"/>
+<img src="Screenshots/Screenshot02.png" alt="Worklogs Main View" width="300"/>
 
 A lightweight native macOS menu bar app for viewing your weekly Jira worklogs at a glance.
 It connects to your Jira account via REST API and displays a summary of logged hours per issue, helping you track time without opening the Jira UI.
