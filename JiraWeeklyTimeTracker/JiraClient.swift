@@ -24,12 +24,13 @@ class JiraClient {
     struct WorklogEntry: Identifiable {
         let id: String
         let issueKey: String
+        let issueSummary: String
         let authorName: String
         let started: Date
         let timeSpentSeconds: Int
     }
     
-    func fetchFilteredWorklogs(for issueKeys: [String], from startDate: Date, to endDate: Date, completion: @escaping (Result<[WorklogEntry], Error>) -> Void) {
+    func fetchFilteredWorklogs(for issues: [(key: String, summary: String)], from startDate: Date, to endDate: Date, completion: @escaping (Result<[WorklogEntry], Error>) -> Void) {
         let group = DispatchGroup()
         var allEntries: [WorklogEntry] = []
         var firstError: Error?
@@ -37,10 +38,10 @@ class JiraClient {
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
 
-        for issueKey in issueKeys {
+        for issue in issues {
             group.enter()
 
-            let url = baseURL.appendingPathComponent("/rest/api/2/issue/\(issueKey)/worklog")
+            let url = baseURL.appendingPathComponent("/rest/api/2/issue/\(issue.key)/worklog")
             var request = URLRequest(url: url)
             request.setValue(authHeader, forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -78,7 +79,8 @@ class JiraClient {
                     if startedDate >= startDate && startedDate <= endDate {
                         allEntries.append(WorklogEntry(
                             id: id,
-                            issueKey: issueKey,
+                            issueKey: issue.key,
+                            issueSummary: issue.summary,
                             authorName: authorName,
                             started: startedDate,
                             timeSpentSeconds: timeSpentSeconds
@@ -97,11 +99,12 @@ class JiraClient {
         }
     }
     
-    func fetchIssueKeys(jql: String, completion: @escaping (Result<[String], Error>) -> Void) {
+    func fetchIssues(jql: String, completion: @escaping (Result<[(key: String, summary: String)], Error>) -> Void) {
         var components = URLComponents(url: baseURL.appendingPathComponent("/rest/api/2/search"), resolvingAgainstBaseURL: false)!
         components.queryItems = [
             URLQueryItem(name: "jql", value: jql),
-            URLQueryItem(name: "maxResults", value: "100")
+            URLQueryItem(name: "maxResults", value: "100"),
+            URLQueryItem(name: "fields", value: "key,summary")
         ]
 
         guard let url = components.url else {
@@ -127,10 +130,17 @@ class JiraClient {
             do {
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let issues = json["issues"] as? [[String: Any]] {
-                    let keys = issues.compactMap { $0["key"] as? String }
-                    completion(.success(keys))
+                    let results: [(String, String)] = issues.compactMap { issue in
+                        guard let key = issue["key"] as? String,
+                              let fields = issue["fields"] as? [String: Any],
+                              let summary = fields["summary"] as? String else {
+                            return nil
+                        }
+                        return (key, summary)
+                    }
+                    completion(.success(results))
                 } else {
-                    completion(.failure(NSError(domain: "JiraClient", code: 2, userInfo: [NSLocalizedDescriptionKey: "Missing issue keys in response"])))
+                    completion(.failure(NSError(domain: "JiraClient", code: 2, userInfo: [NSLocalizedDescriptionKey: "Missing issue data in response"])))
                 }
             } catch {
                 completion(.failure(error))

@@ -30,22 +30,9 @@
 		CE83E5182E0C4D7800DCD6F2 /* JiraWeeklyTimeTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = JiraWeeklyTimeTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		CE59DD8A2E129E5400BC0652 /* Exceptions for "JiraWeeklyTimeTracker" folder in "JiraWeeklyTimeTracker" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Untitled.swift,
-			);
-			target = CE83E5172E0C4D7800DCD6F2 /* JiraWeeklyTimeTracker */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		CE83E51A2E0C4D7800DCD6F2 /* JiraWeeklyTimeTracker */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				CE59DD8A2E129E5400BC0652 /* Exceptions for "JiraWeeklyTimeTracker" folder in "JiraWeeklyTimeTracker" target */,
-			);
 			path = JiraWeeklyTimeTracker;
 			sourceTree = "<group>";
 		};

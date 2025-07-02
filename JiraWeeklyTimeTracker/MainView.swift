@@ -7,7 +7,7 @@ struct MainView: View {
     var onRefresh: (() -> Void)? = nil
     
     @State private var timer: Timer?
-    @State private var issueKeys: [String] = []
+    @State private var issues: [(key: String, summary: String)] = []
     @State private var worklogsCurrentWeek: [JiraClient.WorklogEntry] = []
     @State private var worklogsPreviousWeek: [JiraClient.WorklogEntry] = []
     @State private var isLoading = true
@@ -29,7 +29,6 @@ struct MainView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // 🔼 Top bar
             HStack {
                 if let name = jiraClient.displayName {
                     Text("Logged in as \(name)")
@@ -143,8 +142,6 @@ struct MainView: View {
             .border(Color.gray.opacity(0.4), width: 0.5)
             .disabled(isLoading)
             
-
-            // 🔽 Main content
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {
                     if isLoading {
@@ -210,10 +207,10 @@ struct MainView: View {
         let startOfPreviousWeek = calendar.date(byAdding: .day, value: -7, to: startOfCurrentWeek)!
         let endOfPreviousWeek = startOfCurrentWeek
 
-        jiraClient.fetchIssueKeys(jql: "worklogAuthor = currentUser() AND worklogDate >= startOfWeek(-1) AND worklogDate <= endOfWeek()") { result in
+        jiraClient.fetchIssues(jql: "worklogAuthor = currentUser() AND worklogDate >= startOfWeek(-1) AND worklogDate <= endOfWeek()") { result in
             switch result {
-            case .success(let keys):
-                self.issueKeys = keys
+            case .success(let issues):
+                self.issues = issues
 
                 let group = DispatchGroup()
                 var currentWeekLogs: [JiraClient.WorklogEntry] = []
@@ -221,7 +218,7 @@ struct MainView: View {
                 var fetchError: Error?
 
                 group.enter()
-                jiraClient.fetchFilteredWorklogs(for: keys, from: startOfCurrentWeek, to: endOfCurrentWeek) { result in
+                jiraClient.fetchFilteredWorklogs(for: issues, from: startOfCurrentWeek, to: endOfCurrentWeek) { result in
                     if case .success(let logs) = result {
                         currentWeekLogs = logs
                     } else if case .failure(let error) = result {
@@ -231,7 +228,7 @@ struct MainView: View {
                 }
 
                 group.enter()
-                jiraClient.fetchFilteredWorklogs(for: keys, from: startOfPreviousWeek, to: endOfPreviousWeek) { result in
+                jiraClient.fetchFilteredWorklogs(for: issues, from: startOfPreviousWeek, to: endOfPreviousWeek) { result in
                     if case .success(let logs) = result {
                         previousWeekLogs = logs
                     } else if case .failure(let error) = result {
@@ -267,6 +264,7 @@ struct MainView: View {
 
         timer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { _ in
             loadData()
+            started = Date()
         }
     }
     
@@ -280,11 +278,11 @@ struct MainView: View {
     private func timesheetTable(logs: [JiraClient.WorklogEntry]) -> some View {
         let grouped = groupedWorklogsMatrix(logs: logs)
         let days = grouped.days
-        let issues = grouped.issues
+        let issueKeys = grouped.issues
         let matrix = grouped.matrix
 
         let columnTotals: [Date: Int] = days.reduce(into: [:]) { result, day in
-            result[day] = issues.reduce(0) { acc, issue in
+            result[day] = issueKeys.reduce(0) { acc, issue in
                 acc + (matrix[issue]?[day] ?? 0)
             }
         }
@@ -301,9 +299,10 @@ struct MainView: View {
                     contentCell("Total", width: 70)
                 }
 
-                ForEach(issues, id: \.self) { issue in
+                ForEach(issueKeys, id: \.self) { issue in
                     HStack(spacing: 0) {
-                        contentCell(issue, width: 160, alignment: .leading)
+                        contentCell(" " + issue, width: 160, alignment: .leading)
+                            .help(issues.first(where: { $0.key == issue })?.summary ?? "No summary")
 
                         let dayEntries = matrix[issue] ?? [:]
                         let total = days.reduce(0) { $0 + (dayEntries[$1] ?? 0) }
@@ -318,7 +317,7 @@ struct MainView: View {
                 }
 
                 HStack(spacing: 0) {
-                    contentCell("Total", width: 160, alignment: .leading, isBold: true)
+                    contentCell(" Total", width: 160, alignment: .leading, isBold: true)
                     ForEach(days, id: \.self) { day in
                         let value = columnTotals[day] ?? 0
                         contentCell(formatShortDuration(seconds: value), width: 70, isBold: true)
