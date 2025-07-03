@@ -6,14 +6,14 @@ class JiraClient {
     private let password: String
     private let session: URLSession
     private(set) var displayName: String?
-
+    
     init(baseURL: String, username: String, password: String, session: URLSession = .shared) {
         self.baseURL = URL(string: baseURL)!
         self.username = username
         self.password = password
         self.session = session
     }
-
+    
     private var authHeader: String {
         let credentials = "\(username):\(password)"
         let data = credentials.data(using: .utf8)!
@@ -34,32 +34,32 @@ class JiraClient {
         let group = DispatchGroup()
         var allEntries: [WorklogEntry] = []
         var firstError: Error?
-
+        
         let dateFormatter = ISO8601DateFormatter()
         dateFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-
+        
         for issue in issues {
             group.enter()
-
+            
             let url = baseURL.appendingPathComponent("/rest/api/2/issue/\(issue.key)/worklog")
             var request = URLRequest(url: url)
             request.setValue(authHeader, forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Accept")
-
+            
             session.dataTask(with: request) { data, response, error in
                 defer { group.leave() }
-
+                
                 if let error = error {
                     firstError = error
                     return
                 }
-
+                
                 guard let data = data,
                       let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                       let worklogs = json["worklogs"] as? [[String: Any]] else {
                     return
                 }
-
+                
                 for log in worklogs {
                     guard
                         let author = log["author"] as? [String: Any],
@@ -71,11 +71,11 @@ class JiraClient {
                     else {
                         continue
                     }
-
+                    
                     if authorName != self.displayName {
                         continue
                     }
-
+                    
                     if startedDate >= startDate && startedDate <= endDate {
                         allEntries.append(WorklogEntry(
                             id: id,
@@ -89,7 +89,7 @@ class JiraClient {
                 }
             }.resume()
         }
-
+        
         group.notify(queue: .main) {
             if let error = firstError {
                 completion(.failure(error))
@@ -106,27 +106,27 @@ class JiraClient {
             URLQueryItem(name: "maxResults", value: "100"),
             URLQueryItem(name: "fields", value: "key,summary")
         ]
-
+        
         guard let url = components.url else {
             completion(.failure(NSError(domain: "JiraClient", code: 0, userInfo: [NSLocalizedDescriptionKey: "Invalid URL"])))
             return
         }
-
+        
         var request = URLRequest(url: url)
         request.setValue(authHeader, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-
+        
         let task = session.dataTask(with: request) { data, response, error in
             if let error = error {
                 return completion(.failure(error))
             }
-
+            
             guard let httpResponse = response as? HTTPURLResponse,
                   httpResponse.statusCode == 200,
                   let data = data else {
                 return completion(.failure(NSError(domain: "JiraClient", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])))
             }
-
+            
             do {
                 if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let issues = json["issues"] as? [[String: Any]] {
@@ -146,7 +146,7 @@ class JiraClient {
                 completion(.failure(error))
             }
         }
-
+        
         task.resume()
     }
     
@@ -164,14 +164,14 @@ class JiraClient {
         request.setValue(authHeader, forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-
+        
         let seconds = Int(hours * 3600)
-
+        
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss.SSSZ"
         formatter.timeZone = TimeZone(secondsFromGMT: 0)
         let startedString = formatter.string(from: started)
-
+        
         var payload: [String: Any] = [
             "timeSpentSeconds": seconds,
             "started": startedString,
@@ -184,24 +184,24 @@ class JiraClient {
                 "comment": comment
             ]
         }
-
+        
         do {
             request.httpBody = try JSONSerialization.data(withJSONObject: payload)
         } catch {
             return completion(.failure(error))
         }
-
+        
         session.dataTask(with: request) { data, response, error in
             if let error = error {
                 return completion(.failure(error))
             }
-
+            
             guard let httpResponse = response as? HTTPURLResponse else {
                 return completion(.failure(NSError(domain: "JiraClient", code: 0, userInfo: [
                     NSLocalizedDescriptionKey: "No HTTP response"
                 ])))
             }
-
+            
             if (200...299).contains(httpResponse.statusCode) {
                 completion(.success(()))
             } else {
@@ -221,36 +221,36 @@ class JiraClient {
             }
         }.resume()
     }
-
+    
     func testConnection(completion: @escaping (Result<String, Error>) -> Void) {
-            let url = baseURL.appendingPathComponent("/rest/api/2/myself")
-            var request = URLRequest(url: url)
-            request.setValue(authHeader, forHTTPHeaderField: "Authorization")
-            request.setValue("application/json", forHTTPHeaderField: "Accept")
-
-            let task = session.dataTask(with: request) { data, response, error in
-                if let error = error {
-                    return completion(.failure(error))
-                }
-
-                guard let httpResponse = response as? HTTPURLResponse,
-                      httpResponse.statusCode == 200,
-                      let data = data else {
-                    return completion(.failure(NSError(domain: "JiraClient", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])))
-                }
-
-                do {
-                    if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-                       let name = json["displayName"] as? String {
-                        self.displayName = name
-                    }
-                    let jsonString = String(data: data, encoding: .utf8) ?? "No JSON"
-                    completion(.success(jsonString))
-                } catch {
-                    completion(.failure(error))
-                }
+        let url = baseURL.appendingPathComponent("/rest/api/2/myself")
+        var request = URLRequest(url: url)
+        request.setValue(authHeader, forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        
+        let task = session.dataTask(with: request) { data, response, error in
+            if let error = error {
+                return completion(.failure(error))
             }
-
-            task.resume()
+            
+            guard let httpResponse = response as? HTTPURLResponse,
+                  httpResponse.statusCode == 200,
+                  let data = data else {
+                return completion(.failure(NSError(domain: "JiraClient", code: 1, userInfo: [NSLocalizedDescriptionKey: "Invalid response"])))
+            }
+            
+            do {
+                if let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let name = json["displayName"] as? String {
+                    self.displayName = name
+                }
+                let jsonString = String(data: data, encoding: .utf8) ?? "No JSON"
+                completion(.success(jsonString))
+            } catch {
+                completion(.failure(error))
+            }
         }
+        
+        task.resume()
+    }
 }

@@ -3,7 +3,7 @@ import Foundation
 class SessionManager: ObservableObject {
     @Published var isLoggedIn = false
     @Published var client: JiraClient?
-
+    
     func tryAutoLogin() {
         let defaults = UserDefaults.standard
         guard
@@ -13,7 +13,7 @@ class SessionManager: ObservableObject {
         else {
             return
         }
-
+        
         let apiClient = JiraClient(baseURL: url, username: username, password: password)
         apiClient.testConnection { result in
             DispatchQueue.main.async {
@@ -27,7 +27,7 @@ class SessionManager: ObservableObject {
             }
         }
     }
-
+    
     func logout() {
         self.client = nil
         self.isLoggedIn = false
