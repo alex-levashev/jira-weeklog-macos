@@ -302,6 +302,10 @@ struct MainView: View {
                     HStack(spacing: 0) {
                         contentCell(" " + issue, width: 160, alignment: .leading)
                             .help(issues.first(where: { $0.key == issue })?.summary ?? "No summary")
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                issueKey = issue
+                            }
                         
                         let dayEntries = matrix[issue] ?? [:]
                         let total = days.reduce(0) { $0 + (dayEntries[$1] ?? 0) }
