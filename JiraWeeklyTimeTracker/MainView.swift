@@ -385,7 +385,7 @@ struct MainView: View {
         let h = seconds / 3600
         let m = (seconds % 3600) / 60
         if h > 0 && m > 0 {
-            return "\(h): \(m)"
+            return "\(h):\(m)"
         } else if h > 0 {
             return "\(h)"
         } else if m > 0 {
